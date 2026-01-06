@@ -5,11 +5,15 @@ const cron = require('node-cron');
 const { NotionService } = require('./services/notion');
 const { SlackService } = require('./services/slack');
 const { TaskManager } = require('./services/task-manager');
+const { NotionWebhookHandler } = require('./services/webhook-handler');
 
 // Initialize services
 const notionService = new NotionService();
 const slackService = new SlackService();
 const taskManager = new TaskManager(notionService, slackService);
+
+// Initialize webhook handler
+const webhookHandler = new NotionWebhookHandler(taskManager, process.env.NOTION_WEBHOOK_SECRET || 'temp-secret');
 
 // Initialize Slack app
 const app = new App({
@@ -17,6 +21,11 @@ const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
   socketMode: false,
   port: process.env.PORT || 3000
+});
+
+// Add webhook endpoint for Notion
+app.receiver.router.post('/notion/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+  await webhookHandler.handleWebhook(req, res);
 });
 
 // Handle "Done" button clicks
@@ -54,22 +63,26 @@ cron.schedule('0 6-22 * * 0-6', async () => {
   timezone: "America/New_York" // EST timezone
 });
 
-// Real-time monitoring: Check for new tasks every 2 minutes (reduced frequency)
-cron.schedule('*/2 * * * *', async () => {
-  await taskManager.checkForNewTasks();
+// Optimized monitoring: Only check when needed
+// Check for new tasks every 5 minutes (reduced from 2)
+cron.schedule('*/5 * * * *', async () => {
+  // Only check if we have available slots
+  if (taskManager.activeTasks.size < taskManager.maxActiveTasks) {
+    await taskManager.checkForNewTasks();
+  }
 }, {
   timezone: "America/New_York"
 });
 
-// Check for tasks completed in Notion every 5 minutes (reduced frequency)
-cron.schedule('*/5 * * * *', async () => {
+// Check for completed tasks every 3 minutes (reduced from 5)
+cron.schedule('*/3 * * * *', async () => {
   await taskManager.checkForCompletedTasks();
 }, {
   timezone: "America/New_York"
 });
 
-// Check for task date updates every 10 minutes (reduced frequency)
-cron.schedule('*/10 * * * *', async () => {
+// Check for task updates every 15 minutes (reduced from 10)
+cron.schedule('*/15 * * * *', async () => {
   await taskManager.checkForUpdatedTasks();
 }, {
   timezone: "America/New_York"
@@ -128,9 +141,13 @@ app.command('/check-updates', async ({ ack, respond }) => {
 });
 
 // Health check endpoint
-const expressApp = express();
-expressApp.get('/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.receiver.router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    activeTasks: taskManager.activeTasks.size,
+    maxTasks: taskManager.maxActiveTasks
+  });
 });
 
 // Start the app
