@@ -18,16 +18,6 @@ const app = new App({
   port: process.env.PORT || 3000
 });
 
-// Health check endpoint
-app.receiver.app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    activeTasks: taskManager.activeTasks.size || 0,
-    maxTasks: taskManager.maxActiveTasks || 3
-  });
-});
-
 // Handle "Done" button clicks
 app.action('mark_done', async ({ ack, body, client }) => {
   await ack();
