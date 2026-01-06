@@ -23,8 +23,10 @@ const app = new App({
   port: process.env.PORT || 3000
 });
 
-// Add webhook endpoint for Notion
-app.receiver.router.post('/notion/webhook', express.raw({type: 'application/json'}), async (req, res) => {
+// Add webhook endpoint for Notion (after app is initialized)
+const expressApp = app.receiver.app;
+expressApp.use('/notion/webhook', express.raw({type: 'application/json'}));
+expressApp.post('/notion/webhook', async (req, res) => {
   await webhookHandler.handleWebhook(req, res);
 });
 
@@ -141,7 +143,7 @@ app.command('/check-updates', async ({ ack, respond }) => {
 });
 
 // Health check endpoint
-app.receiver.router.get('/health', (req, res) => {
+expressApp.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
