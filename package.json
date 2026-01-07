@@ -2,10 +2,10 @@
   "name": "notion-slack-task-bot",
   "version": "1.0.0",
   "description": "Automated task management between Notion and Slack",
-  "main": "server.js",
+  "main": "server-simple.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node server-simple.js",
+    "dev": "nodemon server-simple.js",
     "post-tasks": "node scripts/post-tasks.js"
   },
   "engines": {
