@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Debug environment variables
+console.log('Environment check:');
+console.log('SLACK_BOT_TOKEN:', process.env.SLACK_BOT_TOKEN ? 'SET' : 'MISSING');
+console.log('SLACK_SIGNING_SECRET:', process.env.SLACK_SIGNING_SECRET ? 'SET' : 'MISSING');
+console.log('NOTION_API_KEY:', process.env.NOTION_API_KEY ? 'SET' : 'MISSING');
+console.log('NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID ? 'SET' : 'MISSING');
+console.log('SLACK_CHANNEL_ID:', process.env.SLACK_CHANNEL_ID ? 'SET' : 'MISSING');
+
 const { App } = require('@slack/bolt');
 const cron = require('node-cron');
 const { NotionService } = require('./services/notion');
