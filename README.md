@@ -122,6 +122,34 @@ Make sure to:
 2. Update your Slack app's Request URLs to your deployed domain
 3. Ensure the server stays running
 
+## Deployment: Railway
+
+1. Push this repository to a Git provider (GitHub/GitLab).
+2. In Railway, create a new Project → Deploy from GitHub and pick this repo.
+3. In Railway Project Settings add the environment variables:
+   - NOTION_API_KEY
+   - NOTION_DATABASE_ID
+   - SLACK_BOT_TOKEN
+   - SLACK_SIGNING_SECRET
+   - SLACK_CHANNEL_ID
+   - (OPTIONAL) PORT — Railway sets one automatically if omitted
+4. Railway will run `npm start` (server.js). Ensure package.json "start" uses server.js.
+5. After deployment update:
+   - Slack Interactivity / Slash Commands Request URL: https://<your-railway-domain>/slack/events
+   - Notion webhook URL (if used): https://<your-railway-domain>/notion/webhook
+6. Use Railway logs to troubleshoot and test with `/post-tasks` or the included test scripts.
+
+Quick deploy commands (local):
+```bash
+git add .
+git commit -m "Add Railway deploy docs and Procfile"
+git push origin main
+```
+
+Notes:
+- Make sure the Slack app has scopes: `chat:write`, `chat:delete`, `commands`, and is installed in the workspace.
+- Ensure the Notion integration is shared with the database and NOTION_DATABASE_ID is correct.
+
 ## How It Works
 
 1. **Real-time Monitoring**: Every minute, the bot checks for new tasks in Notion
