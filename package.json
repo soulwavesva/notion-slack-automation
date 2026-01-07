@@ -4,7 +4,7 @@
   "description": "Automated task management between Notion and Slack",
   "main": "server-simple.js",
   "scripts": {
-    "start": "node server-simple.js",
+    "start": "node railway-debug.js",
     "dev": "nodemon server-simple.js",
     "post-tasks": "node scripts/post-tasks.js"
   },
