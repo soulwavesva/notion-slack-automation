@@ -182,27 +182,50 @@ class TaskManager {
       if (newTasks.length > 0) {
         console.log(`🆕 Found ${newTasks.length} new tasks!`);
         
-        // Filter for overdue/due today tasks that aren't completed
+        // Filter for urgent tasks (overdue/due today) that aren't completed
+        const today = new Date().toISOString().split('T')[0];
         const urgentNewTasks = newTasks.filter(task => {
-          const today = new Date().toISOString().split('T')[0];
           return task.dueDate && task.dueDate <= today && !task.completed;
+        });
+        
+        // Filter for upcoming tasks (next 3 days) that aren't completed
+        const threeDaysFromNow = new Date();
+        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+        const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
+        
+        const upcomingNewTasks = newTasks.filter(task => {
+          return task.dueDate && task.dueDate > today && task.dueDate <= threeDaysStr && !task.completed;
         });
         
         if (urgentNewTasks.length > 0) {
           console.log(`⚡ ${urgentNewTasks.length} new urgent tasks found - posting immediately!`);
           
           for (const task of urgentNewTasks) {
+            task.priority = 'urgent';
             await this.postSingleTaskIfSpace(task);
           }
-        } else {
-          console.log('📝 New tasks found but none are urgent (due today or overdue)');
+        }
+        
+        // If we still have space, post upcoming tasks
+        const availableSlots = this.maxActiveTasks - this.activeTasks.size;
+        if (availableSlots > 0 && upcomingNewTasks.length > 0) {
+          console.log(`🟢 ${upcomingNewTasks.length} new upcoming tasks found - posting to fill remaining slots!`);
+          
+          for (const task of upcomingNewTasks.slice(0, availableSlots)) {
+            task.priority = 'upcoming';
+            await this.postSingleTaskIfSpace(task);
+          }
+        }
+        
+        if (urgentNewTasks.length === 0 && upcomingNewTasks.length === 0) {
+          console.log('📝 New tasks found but none are urgent or upcoming (within next 3 days)');
         }
       }
       
-      // Also check if we have available slots and can post existing urgent tasks
+      // Also check if we have available slots and can post existing tasks
       const availableSlots = this.maxActiveTasks - this.activeTasks.size;
       if (availableSlots > 0) {
-        console.log(`📋 ${availableSlots} slots available - checking for existing urgent tasks to post`);
+        console.log(`📋 ${availableSlots} slots available - checking for existing tasks to post`);
         await this.postTodaysTasks();
       }
       
@@ -227,7 +250,7 @@ class TaskManager {
         return false;
       }
       
-      console.log(`📤 Posting new task: "${task.title}"`);
+      console.log(`📤 Posting new ${task.priority || 'urgent'} task: "${task.title}"`);
       
       const messageInfo = await this.slackService.postTaskMessage(task);
       
@@ -235,7 +258,8 @@ class TaskManager {
         messageTs: messageInfo.messageTs,
         channel: messageInfo.channel,
         title: task.title,
-        lastDueDate: task.dueDate
+        lastDueDate: task.dueDate,
+        priority: task.priority || 'urgent'
       });
       
       return true;
@@ -247,24 +271,24 @@ class TaskManager {
   }
   /**
    * Post today's overdue and due-today tasks to Slack (up to 3)
-   * Prioritizes most overdue tasks first
+   * If space available, also post upcoming tasks (next 3 days) with green emojis
+   * Prioritizes most overdue tasks first, then upcoming tasks
    */
   async postTodaysTasks() {
     try {
-      console.log('Fetching overdue and today\'s tasks from Notion...');
+      console.log('Fetching overdue, today\'s, and upcoming tasks from Notion...');
       
-      // Get all overdue and today's tasks (sorted by most overdue first)
-      const overdueTasks = await this.notionService.getOverdueTasks();
+      // Get urgent tasks (overdue and due today)
+      const urgentTasks = await this.notionService.getOverdueTasks();
       
-      if (overdueTasks.length === 0) {
-        console.log('No overdue or due-today tasks found');
-        return;
-      }
-
-      console.log(`Found ${overdueTasks.length} overdue/due-today tasks`);
+      // Get upcoming tasks (next 3 days) if we have space
+      const upcomingTasks = await this.notionService.getUpcomingTasks();
+      
+      console.log(`Found ${urgentTasks.length} urgent tasks and ${upcomingTasks.length} upcoming tasks`);
 
       // Filter out tasks that are already posted
-      const newTasks = overdueTasks.filter(task => !this.activeTasks.has(task.id));
+      const newUrgentTasks = urgentTasks.filter(task => !this.activeTasks.has(task.id));
+      const newUpcomingTasks = upcomingTasks.filter(task => !this.activeTasks.has(task.id));
       
       // Calculate how many new tasks we can post
       const currentActiveCount = this.activeTasks.size;
@@ -275,15 +299,25 @@ class TaskManager {
         return;
       }
 
-      // Post up to the available slots (most overdue first)
-      const tasksToPost = newTasks.slice(0, availableSlots);
+      // Prioritize urgent tasks first, then fill remaining slots with upcoming tasks
+      let tasksToPost = [];
+      
+      // Add urgent tasks first (up to available slots)
+      tasksToPost = [...newUrgentTasks.slice(0, availableSlots)];
+      
+      // If we still have slots after urgent tasks, add upcoming tasks
+      const remainingSlots = availableSlots - tasksToPost.length;
+      if (remainingSlots > 0 && newUpcomingTasks.length > 0) {
+        console.log(`Adding ${Math.min(remainingSlots, newUpcomingTasks.length)} upcoming tasks to fill remaining slots`);
+        tasksToPost = [...tasksToPost, ...newUpcomingTasks.slice(0, remainingSlots)];
+      }
       
       if (tasksToPost.length === 0) {
-        console.log('No new tasks to post (all overdue/due-today tasks are already active)');
+        console.log('No new tasks to post (all urgent/upcoming tasks are already active)');
         return;
       }
 
-      console.log(`Posting ${tasksToPost.length} new tasks to Slack (most overdue first)...`);
+      console.log(`Posting ${tasksToPost.length} tasks to Slack (${tasksToPost.filter(t => t.priority === 'urgent').length} urgent, ${tasksToPost.filter(t => t.priority === 'upcoming').length} upcoming)...`);
 
       // Post each task
       for (const task of tasksToPost) {
@@ -295,7 +329,8 @@ class TaskManager {
             messageTs: messageInfo.messageTs,
             channel: messageInfo.channel,
             title: task.title,
-            lastDueDate: task.dueDate
+            lastDueDate: task.dueDate,
+            priority: task.priority || 'urgent'
           });
           
         } catch (error) {
@@ -303,7 +338,9 @@ class TaskManager {
         }
       }
 
-      console.log(`Successfully posted ${tasksToPost.length} tasks. Active tasks: ${this.activeTasks.size}`);
+      const urgentCount = tasksToPost.filter(t => t.priority === 'urgent').length;
+      const upcomingCount = tasksToPost.filter(t => t.priority === 'upcoming').length;
+      console.log(`Successfully posted ${urgentCount} urgent and ${upcomingCount} upcoming tasks. Active tasks: ${this.activeTasks.size}`);
       
     } catch (error) {
       console.error('Error in postTodaysTasks:', error);

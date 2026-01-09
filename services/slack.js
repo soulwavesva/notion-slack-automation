@@ -14,12 +14,21 @@ class SlackService {
       const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date';
       const today = new Date().toISOString().split('T')[0];
       
-      // Determine if task is overdue or due today
+      // Determine emoji and text based on priority and due date
       let dueDateText = `📅 Due: ${dueDate}`;
-      if (task.dueDate) {
+      let taskEmoji = '📋';
+      
+      if (task.priority === 'upcoming') {
+        // Green emoji for upcoming tasks (next few days)
+        taskEmoji = '🟢';
+        dueDateText = `🟢 *upcoming*: ${dueDate}`;
+      } else if (task.dueDate) {
+        // Red/orange emojis for urgent tasks
         if (task.dueDate < today) {
+          taskEmoji = '🔴';
           dueDateText = `🔴 *overdue*: ${dueDate}`;
         } else if (task.dueDate === today) {
+          taskEmoji = '🟡';
           dueDateText = `🟡 *due today*: ${dueDate}`;
         }
       }
@@ -31,7 +40,7 @@ class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `📋 *${task.title}*\n${dueDateText}`
+              text: `${taskEmoji} *${task.title}*\n${dueDateText}`
             },
             accessory: {
               type: 'button',
@@ -39,7 +48,7 @@ class SlackService {
                 type: 'plain_text',
                 text: '✅ Done'
               },
-              style: 'primary',
+              style: task.priority === 'upcoming' ? 'default' : 'primary',
               action_id: 'mark_done',
               value: task.id
             }
@@ -56,7 +65,7 @@ class SlackService {
         ]
       });
 
-      console.log(`Posted task "${task.title}" to Slack`);
+      console.log(`Posted ${task.priority || 'urgent'} task "${task.title}" to Slack`);
       
       return {
         messageTs: result.ts,

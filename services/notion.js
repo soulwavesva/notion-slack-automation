@@ -72,11 +72,96 @@ class NotionService {
         id: page.id,
         title: this.extractTitle(page),
         dueDate: this.extractDueDate(page),
-        url: page.url
+        url: page.url,
+        priority: 'urgent' // Mark as urgent (red/orange emojis)
       }));
       
     } catch (error) {
       console.error('Error fetching overdue tasks:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get upcoming tasks (next 3 days) from Notion database
+   * Returns tasks where checkbox is false and due date is in the next 3 days
+   * Sorted by due date ascending
+   */
+  async getUpcomingTasks() {
+    try {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const threeDaysFromNow = new Date(today);
+      threeDaysFromNow.setDate(today.getDate() + 3);
+      
+      const tomorrowStr = tomorrow.toISOString().split('T')[0];
+      const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
+      
+      // Get database structure to find property names
+      const database = await this.notion.databases.retrieve({
+        database_id: this.databaseId
+      });
+      
+      // Find checkbox and date properties automatically
+      let checkboxProperty = null;
+      let dateProperty = null;
+      
+      Object.entries(database.properties).forEach(([name, property]) => {
+        if (property.type === 'checkbox' && !checkboxProperty) {
+          checkboxProperty = name;
+        }
+        if (property.type === 'date' && name.toLowerCase().includes('due')) {
+          dateProperty = name;
+        }
+      });
+      
+      if (!checkboxProperty || !dateProperty) {
+        throw new Error(`Missing properties - Checkbox: ${checkboxProperty}, Date: ${dateProperty}`);
+      }
+      
+      const response = await this.notion.databases.query({
+        database_id: this.databaseId,
+        filter: {
+          and: [
+            {
+              property: checkboxProperty,
+              checkbox: {
+                equals: false
+              }
+            },
+            {
+              property: dateProperty,
+              date: {
+                on_or_after: tomorrowStr // Tomorrow or later
+              }
+            },
+            {
+              property: dateProperty,
+              date: {
+                on_or_before: threeDaysStr // Within next 3 days
+              }
+            }
+          ]
+        },
+        sorts: [
+          {
+            property: dateProperty,
+            direction: 'ascending' // Earliest upcoming first
+          }
+        ]
+      });
+
+      return response.results.map(page => ({
+        id: page.id,
+        title: this.extractTitle(page),
+        dueDate: this.extractDueDate(page),
+        url: page.url,
+        priority: 'upcoming' // Mark as upcoming (green emoji)
+      }));
+      
+    } catch (error) {
+      console.error('Error fetching upcoming tasks:', error);
       throw error;
     }
   }
