@@ -102,9 +102,6 @@ cron.schedule('0 6,8,10,12,14,16,18,20,22 * * 0-6', async () => {
 }, {
   timezone: "America/New_York"
 });
-}, {
-  timezone: "America/New_York" // EST timezone
-});
 
 // Manual trigger endpoint
 app.command('/post-tasks', async ({ ack, respond }) => {
