@@ -82,7 +82,11 @@ cron.schedule('*/15 * * * *', async () => {
 // Clean up stale messages at 6 AM every day (start of work day)
 cron.schedule('0 6 * * 0-6', async () => {
   console.log('Running daily cleanup at 6 AM...');
-  await taskManager.cleanupStaleMessages();
+  try {
+    await taskManager.cleanupStaleMessages();
+  } catch (error) {
+    console.error('Error during daily cleanup:', error);
+  }
 }, {
   timezone: "America/New_York"
 });
@@ -90,7 +94,14 @@ cron.schedule('0 6 * * 0-6', async () => {
 // Schedule task posting every 2 hours from 6 AM to 10 PM EST, Monday through Sunday
 cron.schedule('0 6,8,10,12,14,16,18,20,22 * * 0-6', async () => {
   console.log('Running scheduled task check (every 2 hours, 6 AM - 10 PM EST, Mon-Sun)...');
-  await taskManager.postTodaysTasks();
+  try {
+    await taskManager.postTodaysTasks();
+  } catch (error) {
+    console.error('Error in scheduled task posting:', error);
+  }
+}, {
+  timezone: "America/New_York"
+});
 }, {
   timezone: "America/New_York" // EST timezone
 });
