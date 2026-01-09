@@ -16,19 +16,16 @@ class SlackService {
       
       // Determine emoji and text based on priority and due date
       let dueDateText = `📅 Due: ${dueDate}`;
-      let taskEmoji = '📋';
+      let taskEmoji = '📌'; // Pin emoji for all tasks
       
       if (task.priority === 'upcoming') {
         // Green emoji for upcoming tasks (next few days)
-        taskEmoji = '🟢';
         dueDateText = `🟢 *upcoming*: ${dueDate}`;
       } else if (task.dueDate) {
         // Red/orange emojis for urgent tasks
         if (task.dueDate < today) {
-          taskEmoji = '🔴';
           dueDateText = `🔴 *overdue*: ${dueDate}`;
         } else if (task.dueDate === today) {
-          taskEmoji = '🟡';
           dueDateText = `🟡 *due today*: ${dueDate}`;
         }
       }
