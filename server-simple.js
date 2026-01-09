@@ -79,9 +79,17 @@ cron.schedule('*/15 * * * *', async () => {
   timezone: "America/New_York"
 });
 
-// Schedule task posting every hour from 6 AM to 10 PM EST, Monday through Sunday
-cron.schedule('0 6-22 * * 0-6', async () => {
-  console.log('Running scheduled task check (6 AM - 10 PM EST, Mon-Sun)...');
+// Clean up stale messages at 6 AM every day (start of work day)
+cron.schedule('0 6 * * 0-6', async () => {
+  console.log('Running daily cleanup at 6 AM...');
+  await taskManager.cleanupStaleMessages();
+}, {
+  timezone: "America/New_York"
+});
+
+// Schedule task posting every 2 hours from 6 AM to 10 PM EST, Monday through Sunday
+cron.schedule('0 6,8,10,12,14,16,18,20,22 * * 0-6', async () => {
+  console.log('Running scheduled task check (every 2 hours, 6 AM - 10 PM EST, Mon-Sun)...');
   await taskManager.postTodaysTasks();
 }, {
   timezone: "America/New_York" // EST timezone
@@ -136,6 +144,19 @@ app.command('/check-updates', async ({ ack, respond }) => {
   } catch (error) {
     console.error('Error checking task updates:', error);
     await respond('❌ Error checking task updates. Check the logs.');
+  }
+});
+
+// Manual cleanup command
+app.command('/cleanup', async ({ ack, respond }) => {
+  await ack();
+  
+  try {
+    await taskManager.cleanupStaleMessages();
+    await respond('✅ Cleaned up stale messages!');
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    await respond('❌ Error during cleanup. Check the logs.');
   }
 });
 

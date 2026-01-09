@@ -343,6 +343,86 @@ class TaskManager {
     this.activeTasks.clear();
     console.log('Cleared all active tasks');
   }
+
+  /**
+   * Clean up stale messages (run daily at 6 AM)
+   * Removes messages for tasks that are no longer urgent or completed
+   */
+  async cleanupStaleMessages() {
+    try {
+      console.log('🧹 Running daily cleanup of stale messages...');
+      
+      if (this.activeTasks.size === 0) {
+        console.log('No active tasks to clean up');
+        return;
+      }
+
+      const activeTaskIds = Array.from(this.activeTasks.keys());
+      const tasksToRemove = [];
+      const today = new Date().toISOString().split('T')[0];
+      
+      for (const taskId of activeTaskIds) {
+        try {
+          const taskInfo = this.activeTasks.get(taskId);
+          const currentTask = await this.notionService.getTaskById(taskId);
+          
+          let shouldRemove = false;
+          let reason = '';
+          
+          if (!currentTask) {
+            // Task was deleted in Notion
+            shouldRemove = true;
+            reason = 'deleted from Notion';
+          } else if (currentTask.completed) {
+            // Task is completed
+            shouldRemove = true;
+            reason = 'completed';
+          } else if (currentTask.dueDate && currentTask.dueDate > today) {
+            // Task is no longer due today or overdue
+            shouldRemove = true;
+            reason = 'no longer urgent (due date moved to future)';
+          } else if (!currentTask.dueDate) {
+            // Task has no due date
+            shouldRemove = true;
+            reason = 'no due date';
+          }
+          
+          if (shouldRemove) {
+            console.log(`🗑️ Removing stale task "${taskInfo.title}" - ${reason}`);
+            
+            // Delete the Slack message
+            await this.slackService.deleteMessage(taskInfo.channel, taskInfo.messageTs);
+            tasksToRemove.push(taskId);
+          }
+          
+        } catch (error) {
+          console.error(`Error checking task ${taskId} during cleanup:`, error);
+          // If we can't check the task, remove it to be safe
+          const taskInfo = this.activeTasks.get(taskId);
+          console.log(`🗑️ Removing problematic task "${taskInfo.title}" due to error`);
+          await this.slackService.deleteMessage(taskInfo.channel, taskInfo.messageTs);
+          tasksToRemove.push(taskId);
+        }
+      }
+      
+      // Remove stale tasks from active list
+      tasksToRemove.forEach(taskId => {
+        this.activeTasks.delete(taskId);
+      });
+      
+      if (tasksToRemove.length > 0) {
+        console.log(`🧹 Cleaned up ${tasksToRemove.length} stale message(s)`);
+        
+        // Post fresh tasks to fill available slots
+        await this.postTodaysTasks();
+      } else {
+        console.log('✅ No stale messages found - all active tasks are current');
+      }
+      
+    } catch (error) {
+      console.error('Error during daily cleanup:', error);
+    }
+  }
 }
 
 module.exports = { TaskManager };
