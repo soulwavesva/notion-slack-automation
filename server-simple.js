@@ -57,10 +57,8 @@ app.action('mark_done', async ({ ack, body, client }) => {
 // Optimized monitoring: Only check when needed
 // Check for new tasks every 5 minutes (reduced from 2)
 cron.schedule('*/5 * * * *', async () => {
-  // Only check if we have available slots
-  if (taskManager.activeTasks.size < taskManager.maxActiveTasks) {
-    await taskManager.checkForNewTasks();
-  }
+  // Always check for new tasks, regardless of available slots
+  await taskManager.checkForNewTasks();
 }, {
   timezone: "America/New_York"
 });
@@ -68,6 +66,17 @@ cron.schedule('*/5 * * * *', async () => {
 // Check for completed tasks every 3 minutes (reduced from 5)
 cron.schedule('*/3 * * * *', async () => {
   await taskManager.checkForCompletedTasks();
+}, {
+  timezone: "America/New_York"
+});
+
+// Fill available slots every 2 minutes during work hours
+cron.schedule('*/2 6-22 * * 0-6', async () => {
+  const availableSlots = taskManager.maxActiveTasks - taskManager.activeTasks.size;
+  if (availableSlots > 0) {
+    console.log(`🔄 Quick check: ${availableSlots} slots available - trying to fill them`);
+    await taskManager.postTodaysTasks();
+  }
 }, {
   timezone: "America/New_York"
 });
@@ -155,8 +164,21 @@ app.command('/check-updates', async ({ ack, respond }) => {
   }
 });
 
-// Manual cleanup command
+// Manual cleanup command (alternative: try /clean-tasks if /cleanup doesn't work)
 app.command('/cleanup', async ({ ack, respond }) => {
+  await ack();
+  
+  try {
+    await taskManager.cleanupStaleMessages();
+    await respond('✅ Cleaned up stale messages!');
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    await respond('❌ Error during cleanup. Check the logs.');
+  }
+});
+
+// Alternative cleanup command in case /cleanup isn't registered
+app.command('/clean-tasks', async ({ ack, respond }) => {
   await ack();
   
   try {

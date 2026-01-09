@@ -199,6 +199,13 @@ class TaskManager {
         }
       }
       
+      // Also check if we have available slots and can post existing urgent tasks
+      const availableSlots = this.maxActiveTasks - this.activeTasks.size;
+      if (availableSlots > 0) {
+        console.log(`📋 ${availableSlots} slots available - checking for existing urgent tasks to post`);
+        await this.postTodaysTasks();
+      }
+      
     } catch (error) {
       console.error('Error checking for new tasks:', error);
     }
