@@ -45,7 +45,7 @@ class SlackService {
                 type: 'plain_text',
                 text: '✅ Done'
               },
-              style: task.priority === 'upcoming' ? 'default' : 'primary',
+              style: task.priority === 'upcoming' ? undefined : 'primary',
               action_id: 'mark_done',
               value: task.id
             }
