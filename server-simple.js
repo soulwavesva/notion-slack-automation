@@ -8,7 +8,7 @@ console.log('NOTION_API_KEY:', process.env.NOTION_API_KEY ? 'SET' : 'MISSING');
 console.log('NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID ? 'SET' : 'MISSING');
 console.log('SLACK_CHANNEL_ID:', process.env.SLACK_CHANNEL_ID ? 'SET' : 'MISSING');
 
-const { App } = require('@slack/bolt');
+const { App, ExpressReceiver } = require('@slack/bolt');
 const cron = require('node-cron');
 const { NotionService } = require('./services/notion');
 const { SlackService } = require('./services/slack');
@@ -19,12 +19,16 @@ const notionService = new NotionService();
 const slackService = new SlackService();
 const taskManager = new TaskManager(notionService, slackService);
 
-// Initialize Slack app
+// Create Express receiver for custom endpoints
+const receiver = new ExpressReceiver({
+  signingSecret: process.env.SLACK_SIGNING_SECRET,
+  endpoints: '/slack/events'
+});
+
+// Initialize Slack app with Express receiver
 const app = new App({
   token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET,
-  socketMode: false,
-  port: process.env.PORT || 3000
+  receiver
 });
 
 // Handle "Done" button clicks
@@ -206,7 +210,7 @@ app.command('/clean-tasks', async ({ ack, respond }) => {
 });
 
 // Health check endpoint
-app.use('/health', (req, res) => {
+receiver.app.get('/health', (req, res) => {
   const status = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -223,7 +227,7 @@ app.use('/health', (req, res) => {
 });
 
 // Status endpoint for debugging
-app.use('/status', (req, res) => {
+receiver.app.get('/status', (req, res) => {
   const activeTasks = Array.from(taskManager.activeTasks.entries()).map(([id, info]) => ({
     id: id.substring(0, 8) + '...',
     title: info.title,
@@ -247,11 +251,13 @@ app.use('/status', (req, res) => {
 // Start the app
 (async () => {
   try {
-    await app.start();
+    await app.start(process.env.PORT || 3000);
     console.log('⚡️ Notion-Slack Task Bot is running!');
     console.log(`🚀 Server running on port ${process.env.PORT || 3000}`);
     console.log(`🕐 Current time: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} EST`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🔗 Health check: http://localhost:${process.env.PORT || 3000}/health`);
+    console.log(`📊 Status check: http://localhost:${process.env.PORT || 3000}/status`);
     
     // Post initial tasks on startup with better error handling
     setTimeout(async () => {
