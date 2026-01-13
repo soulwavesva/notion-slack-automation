@@ -57,25 +57,40 @@ app.action('mark_done', async ({ ack, body, client }) => {
 // Optimized monitoring: Only check when needed
 // Check for new tasks every 5 minutes (reduced from 2)
 cron.schedule('*/5 * * * *', async () => {
-  // Always check for new tasks, regardless of available slots
-  await taskManager.checkForNewTasks();
+  try {
+    console.log(`🔍 [${new Date().toLocaleTimeString()}] Checking for new tasks...`);
+    await taskManager.checkForNewTasks();
+  } catch (error) {
+    console.error('❌ Error in new task check:', error);
+  }
 }, {
   timezone: "America/New_York"
 });
 
 // Check for completed tasks every 3 minutes (reduced from 5)
 cron.schedule('*/3 * * * *', async () => {
-  await taskManager.checkForCompletedTasks();
+  try {
+    console.log(`✅ [${new Date().toLocaleTimeString()}] Checking for completed tasks...`);
+    await taskManager.checkForCompletedTasks();
+  } catch (error) {
+    console.error('❌ Error in completed task check:', error);
+  }
 }, {
   timezone: "America/New_York"
 });
 
 // Fill available slots every 2 minutes during work hours
 cron.schedule('*/2 6-22 * * 0-6', async () => {
-  const availableSlots = taskManager.maxActiveTasks - taskManager.activeTasks.size;
-  if (availableSlots > 0) {
-    console.log(`🔄 Quick check: ${availableSlots} slots available - trying to fill them`);
-    await taskManager.postTodaysTasks();
+  try {
+    const availableSlots = taskManager.maxActiveTasks - taskManager.activeTasks.size;
+    if (availableSlots > 0) {
+      console.log(`🔄 [${new Date().toLocaleTimeString()}] Quick check: ${availableSlots} slots available - trying to fill them`);
+      await taskManager.postTodaysTasks();
+    } else {
+      console.log(`📋 [${new Date().toLocaleTimeString()}] All slots filled (${taskManager.activeTasks.size}/${taskManager.maxActiveTasks})`);
+    }
+  } catch (error) {
+    console.error('❌ Error in slot filling:', error);
   }
 }, {
   timezone: "America/New_York"
@@ -190,20 +205,84 @@ app.command('/clean-tasks', async ({ ack, respond }) => {
   }
 });
 
+// Health check endpoint
+app.use('/health', (req, res) => {
+  const status = {
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    activeTasks: taskManager.activeTasks.size,
+    maxTasks: taskManager.maxActiveTasks,
+    knownTasks: taskManager.knownTaskIds.size,
+    environment: process.env.NODE_ENV,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+  };
+  
+  console.log('🏥 Health check requested:', status);
+  res.json(status);
+});
+
+// Status endpoint for debugging
+app.use('/status', (req, res) => {
+  const activeTasks = Array.from(taskManager.activeTasks.entries()).map(([id, info]) => ({
+    id: id.substring(0, 8) + '...',
+    title: info.title,
+    priority: info.priority || 'urgent',
+    lastDueDate: info.lastDueDate
+  }));
+  
+  const status = {
+    server: 'running',
+    timestamp: new Date().toISOString(),
+    activeTasks: activeTasks,
+    totalActive: taskManager.activeTasks.size,
+    maxTasks: taskManager.maxActiveTasks,
+    availableSlots: taskManager.maxActiveTasks - taskManager.activeTasks.size
+  };
+  
+  console.log('📊 Status check requested:', status);
+  res.json(status);
+});
+    await respond('✅ Cleaned up stale messages!');
+  } catch (error) {
+    console.error('Error during cleanup:', error);
+    await respond('❌ Error during cleanup. Check the logs.');
+  }
+});
+
 // Start the app
 (async () => {
   try {
     await app.start();
     console.log('⚡️ Notion-Slack Task Bot is running!');
     console.log(`🚀 Server running on port ${process.env.PORT || 3000}`);
+    console.log(`🕐 Current time: ${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })} EST`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
     
-    // Post initial tasks on startup
+    // Post initial tasks on startup with better error handling
     setTimeout(async () => {
-      console.log('Initializing task tracking...');
-      await taskManager.initializeKnownTasks();
-      
-      console.log('Posting initial tasks...');
-      await taskManager.postTodaysTasks();
+      try {
+        console.log('🔄 Initializing task tracking...');
+        await taskManager.initializeKnownTasks();
+        
+        console.log('📤 Posting initial tasks...');
+        await taskManager.postTodaysTasks();
+        
+        console.log('✅ Startup initialization completed successfully');
+      } catch (error) {
+        console.error('❌ Startup initialization failed:', error);
+        // Try again in 30 seconds
+        setTimeout(async () => {
+          try {
+            console.log('🔄 Retrying startup initialization...');
+            await taskManager.initializeKnownTasks();
+            await taskManager.postTodaysTasks();
+            console.log('✅ Retry successful');
+          } catch (retryError) {
+            console.error('❌ Retry also failed:', retryError);
+          }
+        }, 30000);
+      }
     }, 2000);
     
   } catch (error) {
