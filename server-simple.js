@@ -243,12 +243,6 @@ app.use('/status', (req, res) => {
   console.log('📊 Status check requested:', status);
   res.json(status);
 });
-    await respond('✅ Cleaned up stale messages!');
-  } catch (error) {
-    console.error('Error during cleanup:', error);
-    await respond('❌ Error during cleanup. Check the logs.');
-  }
-});
 
 // Start the app
 (async () => {
