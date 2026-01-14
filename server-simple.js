@@ -119,6 +119,42 @@ cron.schedule('0 6 * * 0-6', async () => {
   timezone: "America/New_York"
 });
 
+// Additional cleanup at 9:30 AM
+cron.schedule('30 9 * * 0-6', async () => {
+  console.log('Running cleanup at 9:30 AM...');
+  try {
+    await taskManager.cleanupStaleMessages();
+  } catch (error) {
+    console.error('Error during 9:30 AM cleanup:', error);
+  }
+}, {
+  timezone: "America/New_York"
+});
+
+// Additional cleanup at 9:45 AM
+cron.schedule('45 9 * * 0-6', async () => {
+  console.log('Running cleanup at 9:45 AM...');
+  try {
+    await taskManager.cleanupStaleMessages();
+  } catch (error) {
+    console.error('Error during 9:45 AM cleanup:', error);
+  }
+}, {
+  timezone: "America/New_York"
+});
+
+// Additional cleanup at 1 PM
+cron.schedule('0 13 * * 0-6', async () => {
+  console.log('Running cleanup at 1 PM...');
+  try {
+    await taskManager.cleanupStaleMessages();
+  } catch (error) {
+    console.error('Error during 1 PM cleanup:', error);
+  }
+}, {
+  timezone: "America/New_York"
+});
+
 // Schedule task posting every 2 hours from 6 AM to 10 PM EST, Monday through Sunday
 cron.schedule('0 6,8,10,12,14,16,18,20,22 * * 0-6', async () => {
   console.log('Running scheduled task check (every 2 hours, 6 AM - 10 PM EST, Mon-Sun)...');

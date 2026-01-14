@@ -84,8 +84,8 @@ class NotionService {
   }
 
   /**
-   * Get upcoming tasks (next 3 days) from Notion database
-   * Returns tasks where checkbox is false and due date is in the next 3 days
+   * Get upcoming tasks (next 7 days) from Notion database
+   * Returns tasks where checkbox is false and due date is in the next 7 days
    * Sorted by due date ascending
    */
   async getUpcomingTasks() {
@@ -93,11 +93,11 @@ class NotionService {
       const today = new Date();
       const tomorrow = new Date(today);
       tomorrow.setDate(today.getDate() + 1);
-      const threeDaysFromNow = new Date(today);
-      threeDaysFromNow.setDate(today.getDate() + 3);
+      const sevenDaysFromNow = new Date(today);
+      sevenDaysFromNow.setDate(today.getDate() + 7);
       
       const tomorrowStr = tomorrow.toISOString().split('T')[0];
-      const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
+      const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
       
       // Get database structure to find property names
       const database = await this.notion.databases.retrieve({
@@ -140,7 +140,7 @@ class NotionService {
             {
               property: dateProperty,
               date: {
-                on_or_before: threeDaysStr // Within next 3 days
+                on_or_before: sevenDaysStr // Within next 7 days
               }
             }
           ]

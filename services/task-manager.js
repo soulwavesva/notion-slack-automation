@@ -189,13 +189,13 @@ class TaskManager {
           return task.dueDate && task.dueDate <= today && !task.completed;
         });
         
-        // Filter for upcoming tasks (next 3 days) that aren't completed
-        const threeDaysFromNow = new Date();
-        threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-        const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
+        // Filter for upcoming tasks (next 7 days) that aren't completed
+        const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0];
         
         const upcomingNewTasks = newTasks.filter(task => {
-          return task.dueDate && task.dueDate > today && task.dueDate <= threeDaysStr && !task.completed;
+          return task.dueDate && task.dueDate > today && task.dueDate <= sevenDaysStr && !task.completed;
         });
         
         if (urgentNewTasks.length > 0) {
@@ -219,7 +219,7 @@ class TaskManager {
         }
         
         if (urgentNewTasks.length === 0 && upcomingNewTasks.length === 0) {
-          console.log('📝 New tasks found but none are urgent or upcoming (within next 3 days)');
+          console.log('📝 New tasks found but none are urgent or upcoming (within next 7 days)');
         }
       }
       
@@ -273,7 +273,7 @@ class TaskManager {
   }
   /**
    * Post today's overdue and due-today tasks to Slack (up to 9 total: 3 per person)
-   * If space available, also post upcoming tasks (next 3 days) with green emojis
+   * If space available, also post upcoming tasks (next 7 days) with green emojis
    * Prioritizes most overdue tasks first, then upcoming tasks
    * Organizes by person: ROB, SAM, ANNA (3 tasks each)
    */
