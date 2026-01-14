@@ -321,11 +321,12 @@ class NotionService {
       const personName = assignedProperty.people[0].name;
       
       // Map Notion names to short names with emojis
-      if (personName.includes('Robert') || personName.includes('Schok')) {
+      // Be more specific with matching to avoid conflicts
+      if (personName === 'Robert Schok' || (personName.includes('Robert') && personName.includes('Schok'))) {
         return { name: 'ROB', emoji: '👨‍💼', fullName: 'Robert Schok' };
-      } else if (personName.includes('Samuel') || personName.includes('Robertson')) {
+      } else if (personName === 'Samuel Robertson' || (personName.includes('Samuel') && personName.includes('Robertson'))) {
         return { name: 'SAM', emoji: '👨‍💻', fullName: 'Samuel Robertson' };
-      } else if (personName.includes('Anna') || personName.includes('Schuster')) {
+      } else if (personName === 'Anna Schuster' || (personName.includes('Anna') && personName.includes('Schuster'))) {
         return { name: 'ANNA', emoji: '👩‍💼', fullName: 'Anna Schuster' };
       }
       
