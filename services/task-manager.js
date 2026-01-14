@@ -3,7 +3,8 @@ class TaskManager {
     this.notionService = notionService;
     this.slackService = slackService;
     this.activeTasks = new Map(); // taskId -> { messageTs, channel, title, lastDueDate }
-    this.maxActiveTasks = 3;
+    this.maxActiveTasks = 9; // 3 tasks per person (ROB, SAM, ANNA)
+    this.maxTasksPerPerson = 3; // Maximum tasks per person
     this.knownTaskIds = new Set(); // Track all tasks we've seen before
     this.lastCheckTime = new Date();
   }
@@ -259,7 +260,8 @@ class TaskManager {
         channel: messageInfo.channel,
         title: task.title,
         lastDueDate: task.dueDate,
-        priority: task.priority || 'urgent'
+        priority: task.priority || 'urgent',
+        assignedTo: task.assignedTo?.name || 'UNASSIGNED'
       });
       
       return true;
@@ -270,9 +272,10 @@ class TaskManager {
     }
   }
   /**
-   * Post today's overdue and due-today tasks to Slack (up to 3)
+   * Post today's overdue and due-today tasks to Slack (up to 9 total: 3 per person)
    * If space available, also post upcoming tasks (next 3 days) with green emojis
    * Prioritizes most overdue tasks first, then upcoming tasks
+   * Organizes by person: ROB, SAM, ANNA (3 tasks each)
    */
   async postTodaysTasks() {
     try {
@@ -286,38 +289,72 @@ class TaskManager {
       
       console.log(`Found ${urgentTasks.length} urgent tasks and ${upcomingTasks.length} upcoming tasks`);
 
+      // Combine all tasks
+      const allTasks = [...urgentTasks, ...upcomingTasks];
+      
       // Filter out tasks that are already posted
-      const newUrgentTasks = urgentTasks.filter(task => !this.activeTasks.has(task.id));
-      const newUpcomingTasks = upcomingTasks.filter(task => !this.activeTasks.has(task.id));
+      const newTasks = allTasks.filter(task => !this.activeTasks.has(task.id));
       
-      // Calculate how many new tasks we can post
-      const currentActiveCount = this.activeTasks.size;
-      const availableSlots = this.maxActiveTasks - currentActiveCount;
+      // Group tasks by person
+      const tasksByPerson = {
+        'ROB': [],
+        'SAM': [],
+        'ANNA': [],
+        'UNASSIGNED': []
+      };
       
-      if (availableSlots <= 0) {
-        console.log('Maximum number of active tasks reached (3). Complete some tasks first.');
-        return;
-      }
-
-      // Prioritize urgent tasks first, then fill remaining slots with upcoming tasks
-      let tasksToPost = [];
+      newTasks.forEach(task => {
+        const personName = task.assignedTo?.name || 'UNASSIGNED';
+        if (tasksByPerson[personName]) {
+          tasksByPerson[personName].push(task);
+        } else {
+          tasksByPerson['UNASSIGNED'].push(task);
+        }
+      });
       
-      // Add urgent tasks first (up to available slots)
-      tasksToPost = [...newUrgentTasks.slice(0, availableSlots)];
+      // Count current active tasks per person
+      const activeTasksByPerson = {
+        'ROB': 0,
+        'SAM': 0,
+        'ANNA': 0,
+        'UNASSIGNED': 0
+      };
       
-      // If we still have slots after urgent tasks, add upcoming tasks
-      const remainingSlots = availableSlots - tasksToPost.length;
-      if (remainingSlots > 0 && newUpcomingTasks.length > 0) {
-        console.log(`Adding ${Math.min(remainingSlots, newUpcomingTasks.length)} upcoming tasks to fill remaining slots`);
-        tasksToPost = [...tasksToPost, ...newUpcomingTasks.slice(0, remainingSlots)];
-      }
+      this.activeTasks.forEach((info, taskId) => {
+        const personName = info.assignedTo || 'UNASSIGNED';
+        if (activeTasksByPerson[personName] !== undefined) {
+          activeTasksByPerson[personName]++;
+        }
+      });
+      
+      console.log('Current active tasks per person:', activeTasksByPerson);
+      
+      // Post up to 3 tasks per person
+      const tasksToPost = [];
+      
+      ['ROB', 'SAM', 'ANNA', 'UNASSIGNED'].forEach(person => {
+        const availableSlots = this.maxTasksPerPerson - activeTasksByPerson[person];
+        if (availableSlots > 0 && tasksByPerson[person].length > 0) {
+          // Sort by priority (urgent first) then by due date
+          const sortedTasks = tasksByPerson[person].sort((a, b) => {
+            if (a.priority === 'urgent' && b.priority !== 'urgent') return -1;
+            if (a.priority !== 'urgent' && b.priority === 'urgent') return 1;
+            return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+          });
+          
+          const tasksForPerson = sortedTasks.slice(0, availableSlots);
+          tasksToPost.push(...tasksForPerson);
+          
+          console.log(`${person}: Adding ${tasksForPerson.length} tasks (${availableSlots} slots available)`);
+        }
+      });
       
       if (tasksToPost.length === 0) {
-        console.log('No new tasks to post (all urgent/upcoming tasks are already active)');
+        console.log('No new tasks to post (all slots filled or no tasks available)');
         return;
       }
 
-      console.log(`Posting ${tasksToPost.length} tasks to Slack (${tasksToPost.filter(t => t.priority === 'urgent').length} urgent, ${tasksToPost.filter(t => t.priority === 'upcoming').length} upcoming)...`);
+      console.log(`Posting ${tasksToPost.length} tasks to Slack...`);
 
       // Post each task
       for (const task of tasksToPost) {
@@ -330,7 +367,8 @@ class TaskManager {
             channel: messageInfo.channel,
             title: task.title,
             lastDueDate: task.dueDate,
-            priority: task.priority || 'urgent'
+            priority: task.priority || 'urgent',
+            assignedTo: task.assignedTo?.name || 'UNASSIGNED'
           });
           
         } catch (error) {
@@ -338,9 +376,15 @@ class TaskManager {
         }
       }
 
-      const urgentCount = tasksToPost.filter(t => t.priority === 'urgent').length;
-      const upcomingCount = tasksToPost.filter(t => t.priority === 'upcoming').length;
-      console.log(`Successfully posted ${urgentCount} urgent and ${upcomingCount} upcoming tasks. Active tasks: ${this.activeTasks.size}`);
+      // Count tasks posted per person
+      const postedByPerson = {};
+      tasksToPost.forEach(task => {
+        const person = task.assignedTo?.name || 'UNASSIGNED';
+        postedByPerson[person] = (postedByPerson[person] || 0) + 1;
+      });
+      
+      console.log(`Successfully posted tasks:`, postedByPerson);
+      console.log(`Total active tasks: ${this.activeTasks.size}/${this.maxActiveTasks}`);
       
     } catch (error) {
       console.error('Error in postTodaysTasks:', error);

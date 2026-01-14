@@ -73,7 +73,8 @@ class NotionService {
         title: this.extractTitle(page),
         dueDate: this.extractDueDate(page),
         url: page.url,
-        priority: 'urgent' // Mark as urgent (red/orange emojis)
+        priority: 'urgent', // Mark as urgent (red/orange emojis)
+        assignedTo: this.extractAssignedPerson(page)
       }));
       
     } catch (error) {
@@ -157,7 +158,8 @@ class NotionService {
         title: this.extractTitle(page),
         dueDate: this.extractDueDate(page),
         url: page.url,
-        priority: 'upcoming' // Mark as upcoming (green emoji)
+        priority: 'upcoming', // Mark as upcoming (green emoji)
+        assignedTo: this.extractAssignedPerson(page)
       }));
       
     } catch (error) {
@@ -221,7 +223,8 @@ class NotionService {
         dueDate: this.extractDueDate(page),
         completed: this.extractCheckboxStatus(page),
         url: page.url,
-        createdTime: page.created_time
+        createdTime: page.created_time,
+        assignedTo: this.extractAssignedPerson(page)
       }));
       
     } catch (error) {
@@ -245,7 +248,8 @@ class NotionService {
         dueDate: this.extractDueDate(page),
         completed: this.extractCheckboxStatus(page),
         url: page.url,
-        createdTime: page.created_time
+        createdTime: page.created_time,
+        assignedTo: this.extractAssignedPerson(page)
       };
       
     } catch (error) {
@@ -303,6 +307,33 @@ class NotionService {
     }
     
     return null;
+  }
+
+  /**
+   * Extract assigned person from Notion page properties
+   * Maps Notion names to short names with emojis
+   */
+  extractAssignedPerson(page) {
+    // Look for "Assigned to" or "Person" property
+    const assignedProperty = page.properties['Assigned to'] || page.properties['Person'] || page.properties['Assign'];
+    
+    if (assignedProperty && assignedProperty.people && assignedProperty.people.length > 0) {
+      const personName = assignedProperty.people[0].name;
+      
+      // Map Notion names to short names with emojis
+      if (personName.includes('Robert') || personName.includes('Schock')) {
+        return { name: 'ROB', emoji: '👨‍💼', fullName: 'Robert Schock' };
+      } else if (personName.includes('Samuel') || personName.includes('Robertson')) {
+        return { name: 'SAM', emoji: '👨‍💻', fullName: 'Samuel Robertson' };
+      } else if (personName.includes('Anna') || personName.includes('Schuster')) {
+        return { name: 'ANNA', emoji: '👩‍💼', fullName: 'Anna Schuster' };
+      }
+      
+      // Default if name doesn't match
+      return { name: personName.split(' ')[0].toUpperCase(), emoji: '👤', fullName: personName };
+    }
+    
+    return { name: 'UNASSIGNED', emoji: '❓', fullName: 'Unassigned' };
   }
 }
 

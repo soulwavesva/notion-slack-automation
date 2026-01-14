@@ -30,6 +30,9 @@ class SlackService {
         }
       }
       
+      // Add assigned person with emoji
+      const assignedText = task.assignedTo ? `${task.assignedTo.emoji} *${task.assignedTo.name}*` : '';
+      
       const result = await this.client.chat.postMessage({
         channel: this.channelId,
         blocks: [
@@ -37,7 +40,7 @@ class SlackService {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `${taskEmoji} *${task.title}*\n${dueDateText}`
+              text: `${assignedText} ${taskEmoji} *${task.title}*\n${dueDateText}`
             },
             accessory: {
               type: 'button',
@@ -62,7 +65,7 @@ class SlackService {
         ]
       });
 
-      console.log(`Posted ${task.priority || 'urgent'} task "${task.title}" to Slack`);
+      console.log(`Posted ${task.priority || 'urgent'} task "${task.title}" for ${task.assignedTo?.name || 'UNASSIGNED'} to Slack`);
       
       return {
         messageTs: result.ts,
