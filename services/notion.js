@@ -314,15 +314,15 @@ class NotionService {
    * Maps Notion names to short names with emojis
    */
   extractAssignedPerson(page) {
-    // Look for "Assigned to" or "Person" property
-    const assignedProperty = page.properties['Assigned to'] || page.properties['Person'] || page.properties['Assign'];
+    // Look for "Assigned To" property (note: capital T)
+    const assignedProperty = page.properties['Assigned To'] || page.properties['Assigned to'] || page.properties['Person'] || page.properties['Assign'];
     
     if (assignedProperty && assignedProperty.people && assignedProperty.people.length > 0) {
       const personName = assignedProperty.people[0].name;
       
       // Map Notion names to short names with emojis
-      if (personName.includes('Robert') || personName.includes('Schock')) {
-        return { name: 'ROB', emoji: '👨‍💼', fullName: 'Robert Schock' };
+      if (personName.includes('Robert') || personName.includes('Schok')) {
+        return { name: 'ROB', emoji: '👨‍💼', fullName: 'Robert Schok' };
       } else if (personName.includes('Samuel') || personName.includes('Robertson')) {
         return { name: 'SAM', emoji: '👨‍💻', fullName: 'Samuel Robertson' };
       } else if (personName.includes('Anna') || personName.includes('Schuster')) {
