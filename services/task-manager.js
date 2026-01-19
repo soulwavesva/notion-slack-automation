@@ -10,6 +10,54 @@ class TaskManager {
   }
 
   /**
+   * Verify that all active task messages still exist in Slack
+   * If messages are missing, repost them or clear from active tasks
+   */
+  async verifySlackMessages() {
+    try {
+      if (this.activeTasks.size === 0) {
+        return;
+      }
+
+      console.log('🔍 Verifying Slack messages still exist...');
+      
+      // Get recent Slack messages
+      const result = await this.slackService.client.conversations.history({
+        channel: process.env.SLACK_CHANNEL_ID,
+        limit: 50 // Check more messages to be thorough
+      });
+      
+      const existingMessageTs = new Set(result.messages.map(msg => msg.ts));
+      const tasksToRepost = [];
+      
+      // Check each active task
+      for (const [taskId, taskInfo] of this.activeTasks.entries()) {
+        if (!existingMessageTs.has(taskInfo.messageTs)) {
+          console.log(`❌ Missing Slack message for task: "${taskInfo.title}"`);
+          tasksToRepost.push(taskId);
+        }
+      }
+      
+      if (tasksToRepost.length > 0) {
+        console.log(`🔄 Found ${tasksToRepost.length} missing Slack messages - reposting...`);
+        
+        // Remove missing tasks from active list and repost them
+        for (const taskId of tasksToRepost) {
+          this.activeTasks.delete(taskId);
+        }
+        
+        // Trigger reposting of tasks
+        await this.postTodaysTasks();
+      } else {
+        console.log('✅ All active task messages verified in Slack');
+      }
+      
+    } catch (error) {
+      console.error('Error verifying Slack messages:', error);
+    }
+  }
+
+  /**
    * Initialize known tasks (run once on startup)
    */
   async initializeKnownTasks() {
@@ -123,6 +171,9 @@ class TaskManager {
       }
 
       console.log('🔍 Checking if any active tasks were completed in Notion...');
+      
+      // First, verify that all active task messages still exist in Slack
+      await this.verifySlackMessages();
       
       // Get current status of all active tasks from Notion
       const activeTaskIds = Array.from(this.activeTasks.keys());

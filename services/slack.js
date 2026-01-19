@@ -35,6 +35,7 @@ class SlackService {
       
       const result = await this.client.chat.postMessage({
         channel: this.channelId,
+        text: `${task.assignedTo?.name || 'UNASSIGNED'}: ${task.title} - ${dueDate}`, // Add text for accessibility
         blocks: [
           {
             type: 'section',
