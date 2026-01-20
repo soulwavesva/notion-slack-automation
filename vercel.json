@@ -14,5 +14,11 @@
       "src": "/(.*)",
       "dest": "server-vercel.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-sync",
+      "schedule": "0 11 * * *"
+    }
   ]
 }

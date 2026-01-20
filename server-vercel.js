@@ -49,7 +49,38 @@ app.action('mark_done', async ({ ack, body, client }) => {
   }
 });
 
-// Vercel Cron endpoints (called by Vercel's built-in cron)
+// Vercel Daily Cron endpoint (called once daily at 6 AM EST)
+receiver.app.get('/api/cron/daily-sync', async (req, res) => {
+  try {
+    console.log('🔄 [VERCEL DAILY CRON] Running comprehensive daily sync at 6 AM EST');
+    
+    // Run all maintenance tasks in sequence
+    console.log('🧹 Cleaning up stale messages...');
+    await taskManager.cleanupStaleMessages();
+    
+    console.log('✅ Checking for completed tasks...');
+    await taskManager.checkForCompletedTasks();
+    
+    console.log('🆕 Checking for new tasks...');
+    await taskManager.checkForNewTasks();
+    
+    console.log('📤 Posting fresh tasks...');
+    await taskManager.postTodaysTasks();
+    
+    res.json({ 
+      success: true, 
+      message: 'Daily sync completed successfully', 
+      timestamp: new Date().toISOString(),
+      schedule: 'Daily at 6 AM EST',
+      note: 'Use /trigger/sync for manual updates anytime'
+    });
+  } catch (error) {
+    console.error('Daily sync error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Legacy endpoints (kept for compatibility)
 receiver.app.get('/api/cron/check-completed', async (req, res) => {
   try {
     console.log('✅ [VERCEL CRON] Checking completed tasks');
