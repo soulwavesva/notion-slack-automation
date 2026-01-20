@@ -1,26 +1,12 @@
 {
-  "name": "notion-slack-task-bot",
+  "name": "notion-slack-automation",
   "version": "1.0.0",
-  "description": "Automated Notion to Slack task posting with interactive buttons",
-  "main": "api/sync.js",
-  "scripts": {
-    "start": "echo 'Vercel serverless functions'",
-    "dev": "vercel dev"
-  },
+  "description": "Notion to Slack task automation",
   "dependencies": {
     "@notionhq/client": "^2.2.3",
     "@slack/web-api": "^6.9.0"
   },
   "engines": {
     "node": "18.x"
-  },
-  "keywords": [
-    "notion",
-    "slack",
-    "automation",
-    "tasks",
-    "bot"
-  ],
-  "author": "",
-  "license": "ISC"
+  }
 }
