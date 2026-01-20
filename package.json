@@ -1,27 +1,32 @@
 {
   "name": "notion-slack-task-bot",
   "version": "1.0.0",
-  "description": "Automated task management between Notion and Slack",
-  "main": "server-simple.js",
+  "description": "Automated Notion to Slack task posting with interactive buttons",
+  "main": "server-vercel.js",
   "scripts": {
-    "start": "node server-simple.js",
-    "dev": "nodemon server-simple.js",
-    "post-tasks": "node scripts/post-tasks.js"
+    "start": "node server-vercel.js",
+    "dev": "node server-vercel.js",
+    "vercel-build": "echo 'Build completed'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.3",
+    "@slack/bolt": "^3.14.0",
+    "@slack/web-api": "^6.9.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "node-cron": "^3.0.2"
   },
   "engines": {
     "node": ">=18.0.0"
   },
-  "dependencies": {
-    "@notionhq/client": "^2.2.15",
-    "@slack/web-api": "^6.12.0",
-    "@slack/bolt": "^3.17.1",
-    "express": "^4.18.2",
-    "dotenv": "^16.4.5",
-    "node-cron": "^3.0.3",
-    "ngrok": "^5.0.0-beta.2",
-    "pm2": "^5.4.3"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.3"
-  }
+  "keywords": [
+    "notion",
+    "slack",
+    "automation",
+    "tasks",
+    "bot"
+  ],
+  "author": "",
+  "license": "ISC"
 }
