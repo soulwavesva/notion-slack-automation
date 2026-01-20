@@ -49,10 +49,10 @@ app.action('mark_done', async ({ ack, body, client }) => {
   }
 });
 
-// Vercel Daily Cron endpoint (called once daily at 6 AM EST)
+// Vercel Daily Cron endpoint (called once daily at 12 AM EST)
 receiver.app.get('/api/cron/daily-sync', async (req, res) => {
   try {
-    console.log('🔄 [VERCEL DAILY CRON] Running comprehensive daily sync at 6 AM EST');
+    console.log('🔄 [VERCEL DAILY CRON] Running comprehensive daily sync at 12 AM EST (midnight)');
     
     // Run all maintenance tasks in sequence
     console.log('🧹 Cleaning up stale messages...');
@@ -64,15 +64,15 @@ receiver.app.get('/api/cron/daily-sync', async (req, res) => {
     console.log('🆕 Checking for new tasks...');
     await taskManager.checkForNewTasks();
     
-    console.log('📤 Posting fresh tasks...');
+    console.log('📤 Posting fresh tasks for the new day...');
     await taskManager.postTodaysTasks();
     
     res.json({ 
       success: true, 
       message: 'Daily sync completed successfully', 
       timestamp: new Date().toISOString(),
-      schedule: 'Daily at 6 AM EST',
-      note: 'Use /trigger/sync for manual updates anytime'
+      schedule: 'Daily at 12 AM EST (midnight)',
+      note: 'Fresh start for each new day! Use /trigger/sync for manual updates anytime'
     });
   } catch (error) {
     console.error('Daily sync error:', error);
@@ -162,7 +162,7 @@ receiver.app.get('/health', (req, res) => {
     maxTasks: taskManager.maxActiveTasks,
     knownTasks: taskManager.knownTaskIds.size,
     environment: process.env.NODE_ENV,
-    cronStatus: 'vercel-native-cron-enabled'
+    cronStatus: 'vercel-native-cron-enabled-midnight-est'
   };
   
   console.log('🏥 Health check requested:', status);
