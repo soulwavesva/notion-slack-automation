@@ -3,18 +3,16 @@ const { SlackService } = require('../lib/slack-service');
 
 module.exports = async (req, res) => {
   try {
-    console.log('🔄 Manual sync triggered');
+    console.log('🕛 Daily cron job triggered at midnight EST');
     
     const notionService = new NotionService();
     const slackService = new SlackService();
     
-    // Get tasks from Notion
+    // Get fresh tasks from Notion
     const urgentTasks = await notionService.getOverdueTasks();
     const upcomingTasks = await notionService.getUpcomingTasks();
     
-    console.log(`Found ${urgentTasks.length} urgent tasks and ${upcomingTasks.length} upcoming tasks`);
-    
-    // Combine and limit to 9 tasks (3 per person)
+    // Combine and organize by person (3 tasks per person max)
     const allTasks = [...urgentTasks, ...upcomingTasks];
     const tasksByPerson = {
       'ROB': [],
@@ -35,7 +33,13 @@ module.exports = async (req, res) => {
     // Post up to 3 tasks per person
     const tasksToPost = [];
     ['ROB', 'SAM', 'ANNA', 'UNASSIGNED'].forEach(person => {
-      const personTasks = tasksByPerson[person].slice(0, 3);
+      const personTasks = tasksByPerson[person]
+        .sort((a, b) => {
+          if (a.priority === 'urgent' && b.priority !== 'urgent') return -1;
+          if (a.priority !== 'urgent' && b.priority === 'urgent') return 1;
+          return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+        })
+        .slice(0, 3);
       tasksToPost.push(...personTasks);
     });
     
@@ -43,12 +47,8 @@ module.exports = async (req, res) => {
     const postedTasks = [];
     for (const task of tasksToPost.slice(0, 9)) {
       try {
-        const messageInfo = await slackService.postTaskMessage(task);
-        postedTasks.push({
-          title: task.title,
-          assignedTo: task.assignedTo?.name || 'UNASSIGNED',
-          priority: task.priority
-        });
+        await slackService.postTaskMessage(task);
+        postedTasks.push(task.title);
       } catch (error) {
         console.error(`Failed to post task ${task.title}:`, error);
       }
@@ -56,19 +56,14 @@ module.exports = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Sync completed successfully',
+      message: 'Daily cron completed successfully',
       timestamp: new Date().toISOString(),
       tasksPosted: postedTasks.length,
-      tasksByPerson: {
-        ROB: postedTasks.filter(t => t.assignedTo === 'ROB').length,
-        SAM: postedTasks.filter(t => t.assignedTo === 'SAM').length,
-        ANNA: postedTasks.filter(t => t.assignedTo === 'ANNA').length,
-        UNASSIGNED: postedTasks.filter(t => t.assignedTo === 'UNASSIGNED').length
-      }
+      schedule: 'Daily at 12 AM EST (midnight)'
     });
     
   } catch (error) {
-    console.error('Sync error:', error);
+    console.error('Daily cron error:', error);
     res.status(500).json({
       success: false,
       error: error.message,

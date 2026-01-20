@@ -1,23 +1,13 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server-vercel.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxLambdaSize": "50mb"
-      }
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node"
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "server-vercel.js"
-    }
-  ],
+  },
   "crons": [
     {
-      "path": "/api/cron/daily-sync",
+      "path": "/api/cron-daily",
       "schedule": "0 5 * * *"
     }
   ]
