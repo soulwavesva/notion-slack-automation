@@ -1,35 +1,16 @@
-// Manual sync endpoint for Vercel
-const { NotionService } = require('../services/notion');
-const { SlackService } = require('../services/slack');
-const { TaskManager } = require('../services/task-manager');
-
+// Simple manual sync endpoint for Vercel
 module.exports = async (req, res) => {
   try {
-    console.log('🔄 Manual sync triggered via API');
-    
-    // Initialize services
-    const notionService = new NotionService();
-    const slackService = new SlackService();
-    const taskManager = new TaskManager(notionService, slackService);
-    
-    // Initialize known tasks
-    await taskManager.initializeKnownTasks();
-    
-    // Run cleanup and sync
-    await taskManager.cleanupStaleMessages();
-    await taskManager.checkForCompletedTasks();
-    await taskManager.checkForNewTasks();
-    await taskManager.postTodaysTasks();
-    
+    // For now, just return success to test the endpoint
     res.status(200).json({
       success: true,
-      message: 'Manual sync completed successfully',
+      message: 'Sync endpoint is working - full sync coming soon',
       timestamp: new Date().toISOString(),
-      platform: 'vercel'
+      platform: 'vercel',
+      note: 'This will trigger the full Notion-Slack sync once services are loaded'
     });
     
   } catch (error) {
-    console.error('Manual sync error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
